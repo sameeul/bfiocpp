@@ -208,23 +208,26 @@ absl::Status SetChunkLayoutFromMetadata(
   return absl::OkStatus();
 }
 
-Result<SharedArrayView<const void>> DecodeChunk(const OmeTiffMetadata& metadata,
+Result<absl::InlinedVector<SharedArray<const void>, 1>> DecodeChunk(const OmeTiffMetadata& metadata,
                                                 absl::Cord buffer) {
 
+    // ToDo
+    // auto decoded_array =
+    //     internal::TryViewCordAsArray(buffer, 0, metadata.dtype,
+    //                                  endian::little, metadata.chunk_layout);
+    // if (decoded_array.valid()){
+    //   return decoded_array;
+    // }
+    // // else {
+    // SharedArray<void> full_decoded_array(
+    //   internal::AllocateAndConstructSharedElements(
+    //       metadata.chunk_layout.num_elements(), value_init, metadata.dtype),
+    //   metadata.chunk_layout);
+    //   return full_decoded_array;   
 
-    auto decoded_array =
-        internal::TryViewCordAsArray(buffer, 0, metadata.dtype,
-                                     endian::little, metadata.chunk_layout);
-    if (decoded_array.valid()){
-      return decoded_array;
-    }
-    else {
-    SharedArrayView<void> full_decoded_array(
-      internal::AllocateAndConstructSharedElements(
-          metadata.chunk_layout.num_elements(), value_init, metadata.dtype),
-      metadata.chunk_layout);
-      return full_decoded_array;   
-    }
+    absl::InlinedVector<SharedArray<const void>, 1> field_arrays(1);
+    return field_arrays;
+    //}
 
 }
 

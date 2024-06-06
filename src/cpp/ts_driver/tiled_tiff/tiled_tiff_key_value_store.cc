@@ -33,8 +33,9 @@
 #include "tensorstore/internal/json_binding/bindable.h"
 #include "tensorstore/internal/json_binding/json_binding.h"
 #include "tensorstore/internal/metrics/counter.h"
-#include "tensorstore/internal/os_error_code.h"
+#include "tensorstore/internal/os/error_code.h"
 #include "tensorstore/internal/path.h"
+#include "tensorstore/internal/uri_utils.h"
 #include "tensorstore/internal/type_traits.h"
 #include "tensorstore/kvstore/byte_range.h"
 #include "tensorstore/kvstore/file/unique_handle.h"
@@ -210,9 +211,9 @@ struct ReadTask {
       read_result.state = ReadResult::kMissing;
       return read_result;
     }
-    if (read_result.stamp.generation == options.if_not_equal ||
-        (!StorageGeneration::IsUnknown(options.if_equal) &&
-         read_result.stamp.generation != options.if_equal)) {
+    if (read_result.stamp.generation == options.generation_conditions.if_not_equal ||
+        (!StorageGeneration::IsUnknown(options.generation_conditions.if_equal) &&
+         read_result.stamp.generation != options.generation_conditions.if_equal)) {
       return read_result;
     }
 

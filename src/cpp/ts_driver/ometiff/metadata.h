@@ -98,7 +98,7 @@ Result<ChunkLayout> GetEffectiveChunkLayout(
 /// Decodes a chunk.
 ///
 /// The layout of the returned array is only valid as long as `metadata`.
-Result<SharedArrayView<const void>> DecodeChunk(const OmeTiffMetadata& metadata,
+Result<absl::InlinedVector<SharedArray<const void>, 1>>  DecodeChunk(const OmeTiffMetadata& metadata,
                                                 absl::Cord buffer);
 
 

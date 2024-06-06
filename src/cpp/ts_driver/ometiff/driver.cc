@@ -17,15 +17,13 @@
 #include "tensorstore/tensorstore.h"
 #include "tensorstore/util/constant_vector.h"
 #include "tensorstore/util/future.h"
-
+#include "tensorstore/util/garbage_collection/fwd.h"
 #include <iostream>
 #include <tuple>
 #include <string>
 
 namespace tensorstore {
 namespace internal_ometiff {
-
-namespace {
 
 namespace jb = tensorstore::internal_json_binding;
 
@@ -86,8 +84,7 @@ class OmeTiffDriverSpec
   
 
   Future<internal::Driver::Handle> Open(
-      internal::OpenTransactionPtr transaction,
-      ReadWriteMode read_write_mode) const override;
+      DriverOpenRequest request) const override;
 };
 
 // we need OMETiff Metadata 
@@ -143,11 +140,16 @@ class DataCache : public internal_kvs_backed_chunk_driver::DataCache {
   using Base = internal_kvs_backed_chunk_driver::DataCache;
 
  public:
-  explicit DataCache(Initializer initializer, std::string key_prefix)
-      : Base(initializer,
+  explicit DataCache(Initializer&& initializer, std::string key_prefix)
+      : Base(std::move(initializer),
              GetChunkGridSpecification(*static_cast<const OmeTiffMetadata*>(
                  initializer.metadata.get()))),
         key_prefix_(std::move(key_prefix)) {}
+
+  const OmeTiffMetadata& metadata() {
+    return *static_cast<const OmeTiffMetadata*>(initial_metadata().get());
+  }
+
 
   absl::Status ValidateMetadataCompatibility(
       const void* existing_metadata_ptr,
@@ -209,38 +211,40 @@ class DataCache : public internal_kvs_backed_chunk_driver::DataCache {
                                                      Box<>(metadata.rank))});
   }
 
-  Result<absl::InlinedVector<SharedArrayView<const void>, 1>> DecodeChunk(
-      const void* metadata, span<const Index> chunk_indices,
-      absl::Cord data) override {
-    TENSORSTORE_ASSIGN_OR_RETURN(
-        auto array,
-        internal_ometiff::DecodeChunk(*static_cast<const OmeTiffMetadata*>(metadata),
-                                 std::move(data)));
-    return absl::InlinedVector<SharedArrayView<const void>, 1>{
-        std::move(array)};
+  Result<absl::InlinedVector<SharedArray<const void>, 1>> DecodeChunk(
+      span<const Index> chunk_indices, absl::Cord data) {
+        //ToDO
+          return internal_ometiff::DecodeChunk(metadata(), std::move(data));
   }
 
-
   Result<absl::Cord> EncodeChunk(
-      const void* metadata, span<const Index> chunk_indices,
+      span<const Index> chunk_indices,
       span<const SharedArrayView<const void>> component_arrays) override {
     return absl::Cord();
   }
 
-   std::string GetChunkStorageKey(const void* metadata_ptr,
-                                 span<const Index> cell_indices) override {
+   std::string GetChunkStorageKey(span<const Index> cell_indices) override {
     // OMETiff is always 5D. So need to add some check here
-    const auto& metadata = *static_cast<const OmeTiffMetadata*>(metadata_ptr);
+       // ToDo
+//     const auto& metadata_ref = *static_cast<const OmeTiffMetadata*>(metadata);
 
-    size_t ifd = metadata.GetIfdIndex(cell_indices[2],cell_indices[1],cell_indices[0]);
+//     size_t ifd = metadata_ref.GetIfdIndex(cell_indices[2],cell_indices[1],cell_indices[0]);
+//     std::string key =
+//          StrCat(key_prefix_, "__TAG__/" );
+//     auto& chunk_shape = metadata_ref.chunk_shape;
+// //    StrAppend(&key, cell_indices.empty() ? 0 : cell_indices[0]);
+
+    // StrAppend(&key, "_", cell_indices[3]*chunk_shape[3]);
+    // StrAppend(&key, "_", cell_indices[4]*chunk_shape[4]);
+    // StrAppend(&key, "_", ifd);
+
     std::string key =
          StrCat(key_prefix_, "__TAG__/" );
-    auto& chunk_shape = metadata.chunk_shape;
-//    StrAppend(&key, cell_indices.empty() ? 0 : cell_indices[0]);
 
-    StrAppend(&key, "_", cell_indices[3]*chunk_shape[3]);
-    StrAppend(&key, "_", cell_indices[4]*chunk_shape[4]);
-    StrAppend(&key, "_", ifd);
+    StrAppend(&key, "_", 0);
+    StrAppend(&key, "_", 0);
+    StrAppend(&key, "_", 0);
+
     return key;
   }
 
@@ -276,7 +280,7 @@ class DataCache : public internal_kvs_backed_chunk_driver::DataCache {
     return absl::OkStatus();
   }
 
-  Result<ChunkLayout> GetChunkLayout(const void* metadata_ptr,
+  Result<ChunkLayout> GetChunkLayoutFromMetadata(const void* metadata_ptr,
                                      std::size_t component_index) override {
     const auto& metadata = *static_cast<const OmeTiffMetadata*>(metadata_ptr);
     ChunkLayout chunk_layout;
@@ -292,11 +296,13 @@ class DataCache : public internal_kvs_backed_chunk_driver::DataCache {
   std::string key_prefix_;
 };
 
-class OmeTiffDriver : public internal_kvs_backed_chunk_driver::RegisteredKvsDriver<
-                     OmeTiffDriver, OmeTiffDriverSpec> {
-  using Base =
-      internal_kvs_backed_chunk_driver::RegisteredKvsDriver<OmeTiffDriver,
-                                                            OmeTiffDriverSpec>;
+class OmeTiffDriver;
+using OmeTiffDriverBase = internal_kvs_backed_chunk_driver::RegisteredKvsDriver<
+    OmeTiffDriver, OmeTiffDriverSpec, DataCache,
+    internal::ChunkCacheReadWriteDriverMixin<
+        OmeTiffDriver, internal_kvs_backed_chunk_driver::KvsChunkedDriverBase>>;
+class OmeTiffDriver : public OmeTiffDriverBase {
+  using Base = OmeTiffDriverBase;
 
  public:
   using Base::Base;
@@ -333,7 +339,7 @@ class OmeTiffDriver::OpenState : public OmeTiffDriver::OpenStateBase {
 
 
   Result<std::shared_ptr<const void>> Create(
-      const void* existing_metadata) override {
+      const void* existing_metadata, CreateOptions options) override {
     if (existing_metadata) {
       return absl::AlreadyExistsError("");
     }
@@ -345,8 +351,9 @@ class OmeTiffDriver::OpenState : public OmeTiffDriver::OpenStateBase {
     return metadata;
   }
 
-  std::unique_ptr<internal_kvs_backed_chunk_driver::DataCache> GetDataCache(
-      DataCache::Initializer initializer) override {
+
+  std::unique_ptr<internal_kvs_backed_chunk_driver::DataCacheBase> GetDataCache(
+      DataCache::Initializer&& initializer) override {
     return std::make_unique<DataCache>(std::move(initializer),
                                        spec().store.path);
   }
@@ -364,12 +371,10 @@ class OmeTiffDriver::OpenState : public OmeTiffDriver::OpenStateBase {
 };
 
 Future<internal::Driver::Handle> OmeTiffDriverSpec::Open(
-    internal::OpenTransactionPtr transaction,
-    ReadWriteMode read_write_mode) const {
-  return OmeTiffDriver::Open(std::move(transaction), this, read_write_mode);
+    DriverOpenRequest request) const {
+  return OmeTiffDriver::Open(this, std::move(request));
 }
 
-}  // namespace
 }  // namespace internal_ometiff
 }  // namespace tensorstore
 

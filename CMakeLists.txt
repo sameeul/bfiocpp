@@ -7,14 +7,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(GNUInstallDirs)
 # this is a workaround for GitHub Action for wheelbuiling
-if(DEFINED ENV{BFIO_CPP_DEP_DIR})
-	set(CMAKE_PREFIX_PATH $ENV{BFIO_CPP_DEP_DIR})
-	link_directories($ENV{BFIO_CPP_DEP_DIR}/${CMAKE_INSTALL_LIBDIR})
+if(DEFINED ENV{BFIOCPP_DEP_DIR})
+	set(CMAKE_PREFIX_PATH $ENV{BFIOCPP_DEP_DIR})
+	link_directories($ENV{BFIOCPP_DEP_DIR}/${CMAKE_INSTALL_LIBDIR})
 endif()
 message(STATUS "CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH}")
+
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-  endif()
+  set(CMAKE_BUILD_TYPE Release)
+endif()
   
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(SOURCE 
@@ -31,8 +32,8 @@ include(FetchContent)
 
 FetchContent_Declare(
   tensorstore
-  URL "https://github.com/google/tensorstore/archive/refs/tags/v0.1.36.tar.gz"
-  URL_HASH SHA256=5857582b1b68e5a3f470d2ee8e9a7fa1ad6e6c7e0867c7c69e5a523ae00bc002
+  URL "https://github.com/google/tensorstore/archive/refs/tags/v0.1.60.tar.gz"
+  URL_HASH SHA256=03632fb027d0fa2ea010c144238e3ec1bd1b89ddbf732f431ca0555151b08175
 )
 
 # Additional FetchContent_Declare calls as needed...
@@ -49,7 +50,7 @@ if (Threads_FOUND)
     endif (CMAKE_USE_PTHREADS_INIT)
     list(APPEND Build_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
 else ()
-	message(STATUS "Unable to find threads. bfio_cpp must have a threading library i.e. pthreads.")
+	message(STATUS "Unable to find threads. bfiocpp must have a threading library i.e. pthreads.")
 endif ()
 
 #==== Pybind11
