@@ -63,6 +63,11 @@ pybind11_add_module(libbfiocpp
 # VERSION_INFO is defined by setup.py and passed into the C++ code as a define (VERSION_INFO) here.
 target_compile_definitions(libbfiocpp PRIVATE VERSION_INFO=${VERSION_INFO})
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /FS")
+endif()
+
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fPIC")
     target_link_libraries(libbfiocpp PRIVATE stdc++fs)
