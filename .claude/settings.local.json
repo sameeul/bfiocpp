@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(ls:*)",
+      "Bash(gcc:*)",
+      "Bash(echo:*)",
+      "Bash(/usr/lib/gcc/x86_64-linux-gnu/12/lto-wrapper:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(env)",
+      "Bash(./docker-dev.sh:*)",
+      "Bash(docker run:*)",
+      "Bash(docker start:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker exec:*)",
+      "WebFetch(domain:google.github.io)",
+      "Bash(docker ps:*)",
+      "Bash(tee:*)"
+    ]
+  }
+}
